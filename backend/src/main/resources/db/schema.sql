@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS reservations (
     INDEX idx_seat_id (seat_id),
     INDEX idx_reserve_date (reserve_date),
     INDEX idx_status (status),
-    UNIQUE KEY uk_seat_date_slot (seat_id, reserve_date, time_slot, status),
+    INDEX idx_seat_date_slot (seat_id, reserve_date, time_slot),
     CONSTRAINT fk_reservation_user FOREIGN KEY (user_id) REFERENCES users(user_id),
     CONSTRAINT fk_reservation_seat FOREIGN KEY (seat_id) REFERENCES seats(seat_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='预约记录表';
@@ -115,12 +115,12 @@ CREATE TABLE IF NOT EXISTS violation_records (
 
 -- 管理员账号（密码：admin123）
 INSERT INTO users (username, password, role) VALUES
-('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5Eh', 'admin');
+('admin', '$2b$10$T2hi7YwNZhrKZyItI8mfIuSfxJW.R5kdQK2ud6sqnUjcphaQOlS5O', 'admin');
 
 -- 测试学生账号（密码：123456）
 INSERT INTO users (username, password, role) VALUES
-('zhangsan', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5Eh', 'student'),
-('lisi', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5Eh', 'student');
+('zhangsan', '$2b$10$4NcUxBugJ8EWa6ZicmIB7OVr9IlPW0pzOAB91PpDrd.rwER47ybFq', 'student'),
+('lisi', '$2b$10$4NcUxBugJ8EWa6ZicmIB7OVr9IlPW0pzOAB91PpDrd.rwER47ybFq', 'student');
 
 -- 自习室
 INSERT INTO study_rooms (room_name, location, total_seats, description) VALUES
