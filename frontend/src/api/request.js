@@ -6,7 +6,6 @@ const request = axios.create({
   timeout: 10000
 })
 
-// 请求拦截器 — 携带JWT令牌
 request.interceptors.request.use(config => {
   const token = localStorage.getItem('token')
   if (token) {
@@ -15,11 +14,22 @@ request.interceptors.request.use(config => {
   return config
 })
 
-// 响应拦截器 — 统一错误处理
 request.interceptors.response.use(
-  response => response.data,
+  response => {
+    const body = response.data
+    if (body && typeof body.code !== 'undefined' && body.code !== 200) {
+      ElMessage.error(body.message || '请求失败')
+      return Promise.reject(body)
+    }
+    return body
+  },
   error => {
-    ElMessage.error(error.response?.data?.message || '网络请求失败')
+    const message = error.response?.data?.message || error.message || '网络请求失败'
+    ElMessage.error(message)
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+    }
     return Promise.reject(error)
   }
 )
