@@ -17,11 +17,25 @@
           :disabled-date="disablePastDate"
           placeholder="预约日期"
         />
-        <el-select v-model="timeSlot" class="slot-select" placeholder="预约时段">
-          <el-option label="上午 08:00-12:00" value="上午" />
-          <el-option label="下午 14:00-18:00" value="下午" />
-          <el-option label="晚上 18:30-21:30" value="晚上" />
-        </el-select>
+        <el-time-select
+          v-model="startTime"
+          :max-time="endTime || roomCloseTime"
+          :min-time="earliestStart"
+          start="07:00"
+          step="00:05"
+          end="22:00"
+          placeholder="开始时间"
+        />
+        <span class="time-sep">—</span>
+        <el-time-select
+          v-model="endTime"
+          :min-time="earliestEnd"
+          :max-time="roomCloseTime"
+          start="07:00"
+          step="00:05"
+          end="22:00"
+          placeholder="结束时间"
+        />
         <el-button type="primary" :loading="loading" @click="loadSeats">刷新座位</el-button>
       </div>
 
@@ -58,7 +72,7 @@
         <el-descriptions-item label="座位">{{ selectedSeat?.seatNumber }}</el-descriptions-item>
         <el-descriptions-item label="类型">{{ selectedSeat?.seatType }}</el-descriptions-item>
         <el-descriptions-item label="日期">{{ reserveDate }}</el-descriptions-item>
-        <el-descriptions-item label="时段">{{ timeSlotText }}</el-descriptions-item>
+        <el-descriptions-item label="时间">{{ startTime }} — {{ endTime }}</el-descriptions-item>
       </el-descriptions>
       <template #footer>
         <el-button @click="reserveDialog = false">取消</el-button>
@@ -85,20 +99,34 @@ const seats = ref([])
 const reserveDialog = ref(false)
 const selectedSeat = ref(null)
 const reserveDate = ref(new Date().toISOString().slice(0, 10))
-const timeSlot = ref('上午')
+const startTime = ref('')
+const endTime = ref('')
 
-const slotTimes = {
-  '上午': ['08:00:00', '12:00:00'],
-  '下午': ['14:00:00', '18:00:00'],
-  '晚上': ['18:30:00', '21:30:00']
-}
+const roomCloseTime = '22:00'
+const maxDurationMinutes = 4 * 60
+
+const earliestStart = computed(() => {
+  if (reserveDate.value !== new Date().toISOString().slice(0, 10)) return '07:00'
+  const now = new Date()
+  const h = now.getHours().toString().padStart(2, '0')
+  const m = Math.ceil(now.getMinutes() / 5) * 5
+  const mm = m >= 60 ? '00' : m.toString().padStart(2, '0')
+  const hh = m >= 60 ? (now.getHours() + 1).toString().padStart(2, '0') : h
+  if (parseInt(hh) >= 22) return '22:00'
+  return `${hh}:${mm}`
+})
+
+const earliestEnd = computed(() => {
+  if (!startTime.value) return '07:05'
+  const [h, m] = startTime.value.split(':').map(Number)
+  const total = h * 60 + m + 5
+  const eh = Math.floor(total / 60)
+  const em = total % 60
+  return `${eh.toString().padStart(2, '0')}:${em.toString().padStart(2, '0')}`
+})
 
 const maxRow = computed(() => Math.max(0, ...seats.value.map(item => item.rowNum || 1)))
 const maxCol = computed(() => Math.max(0, ...seats.value.map(item => item.colNum || 1)))
-const timeSlotText = computed(() => {
-  const times = slotTimes[timeSlot.value]
-  return `${timeSlot.value} ${times[0].slice(0, 5)}-${times[1].slice(0, 5)}`
-})
 
 const seatCells = computed(() => {
   const map = new Map(seats.value.map(seat => [`${seat.rowNum || 1}-${seat.colNum || 1}`, seat]))
@@ -146,15 +174,19 @@ async function loadSeats() {
 
 async function submitReserve() {
   if (!selectedSeat.value) return
-  const [start, end] = slotTimes[timeSlot.value]
+  if (!startTime.value || !endTime.value) {
+    ElMessage.warning('请选择开始和结束时间')
+    return
+  }
+  const start = `${reserveDate.value}T${startTime.value}:00`
+  const end = `${reserveDate.value}T${endTime.value}:00`
   saving.value = true
   try {
     await request.post('/reservations', {
       seatId: selectedSeat.value.seatId,
       reserveDate: reserveDate.value,
-      timeSlot: timeSlot.value,
-      startTime: `${reserveDate.value}T${start}`,
-      endTime: `${reserveDate.value}T${end}`
+      startTime: start,
+      endTime: end
     })
     ElMessage.success('预约成功')
     reserveDialog.value = false
@@ -169,8 +201,9 @@ onMounted(loadSeats)
 </script>
 
 <style scoped>
-.slot-select {
-  width: 180px;
+.time-sep {
+  color: #64748b;
+  font-weight: 600;
 }
 
 .legend {
